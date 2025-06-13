@@ -1,0 +1,29 @@
+{
+  "api-keys": [
+    {
+      "key": "9709b5d6-baaf-436e-b270-969f6a9c5f2b",
+      "user": "alice"
+    },
+    {
+      "key": "ba991b1f-2c6a-4d99-902e-12f68373c301",
+      "user": "jackie"
+    },
+    {
+      "key": "ccc9f66c-ba2c-4b76-9224-324e51a0a795",
+      "user": "janis"
+    },
+    {
+      "key": "d84708e4-2bb6-4e9d-8f65-0bfd18b08194",
+      "user": "joshua"
+    },
+    {
+      "key": "test",
+      "user": "test"
+    },
+    {
+      "key": "167d2c96-9c71-452e-b145-5e7b2b34d669",
+      "user": "sassa"
+    }
+  ]
+}
+

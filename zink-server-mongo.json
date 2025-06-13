@@ -1,0 +1,22 @@
+{
+   "verbose" : true,
+   "logfile" : null,
+   "authorization" : {
+     "file": "../zink-api-keys.json",
+     "save-restricted": true,
+     "find-restricted": false
+   },
+   "http_port": "8282",
+   "interface" : "0.0.0.0",
+   "ssl": {
+      "key": "../key.pem",
+      "cert": "../cert.pem"
+   },
+  "database" : {
+      "type" : "mongodb",
+      "configuration" :  {
+        "host" : "localhost",
+        "port" :  27017,
+        "db" :  "zink"}
+  }
+}
