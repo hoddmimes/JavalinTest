@@ -6,10 +6,9 @@ import com.google.gson.JsonObject;
 import java.util.HashMap;
 
 public class Authorize {
-    static public enum Action {SAVE, FIND}
+    static public enum Action {SAVE, FIND};
 
-    ;
-    final private HashMap<String, String> mApiKeys; // <User,Key>
+    final private HashMap<String, String> mApiKeys;
     final private boolean mSaveRestricted;
     final private boolean mFindRestricted;
 
@@ -20,7 +19,7 @@ public class Authorize {
         if (jAuthorize != null) {
             for (int i = 0; i < jAuthorize.size(); i++) {
                 JsonObject jUserKey = jAuthorize.get(i).getAsJsonObject();
-                mApiKeys.put(jUserKey.get("user").getAsString(), jUserKey.get("key").getAsString());
+                mApiKeys.put(jUserKey.get("key").getAsString(), jUserKey.get("key").getAsString());
             }
         }
     }
@@ -34,11 +33,7 @@ public class Authorize {
 
     public boolean validate(String pKey, Action pAction ) {
         if (((pAction == Action.SAVE) && (mSaveRestricted)) || ((pAction == Action.FIND) && (mFindRestricted))) {
-          for( String k : mApiKeys.values()) {
-              if (k.contentEquals(pKey)) {
-                  return true;
-              }
-          }
+            return mApiKeys.containsKey(pKey);
         }
         return false;
     }
