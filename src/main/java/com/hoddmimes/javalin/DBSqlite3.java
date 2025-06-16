@@ -7,6 +7,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import org.sqlite.SQLiteConfig;
 
@@ -144,7 +145,7 @@ public class DBSqlite3 implements DBBase
     }
 
     @Override
-    public List<JsonObject>  find(String pApplication, String pTag, String pBefore, String pAfter, int pLimit) throws DBException{
+    public JsonArray find(String pApplication, String pTag, String pBefore, String pAfter, int pLimit) throws DBException{
         String sql = "SELECT * FROM " + DB_TABLE + " WHERE " + DB_FLD_APPLICATION + " = \"" + pApplication + "\"";
 
         if (pTag != null) {
@@ -168,7 +169,7 @@ public class DBSqlite3 implements DBBase
         }
         System.out.println( "SQL FIND STATEMENT: " + sql);
 
-        ArrayList<JsonObject> tResult = new ArrayList<>();
+        JsonArray jResult = new JsonArray();
         try {
             Statement sql_stmt = mConnection.createStatement();
 
@@ -184,13 +185,13 @@ public class DBSqlite3 implements DBBase
                 }
                 jRow.addProperty("data", tSqlResult.getString(4));
                 jRow.addProperty("time", tSqlResult.getString(5));
-                tResult.add(jRow);
+                jResult.add(jRow);
             }
         }
         catch( SQLException e) {
             throw new DBException(e);
         }
-        return tResult;
+        return jResult;
 
     }
 
@@ -252,10 +253,8 @@ public class DBSqlite3 implements DBBase
     private void testFind( String pApplication, String pTag, String pBefore, String pAfter, int pLimit) {
         System.out.println("Find Parameters Application: " + pApplication + " Tag: " + pTag + " Before: " + pBefore + " After: " + pAfter + " Limit: " + pLimit);
         try {
-            List<JsonObject> tResults = this.find(pApplication, pTag, pBefore, pAfter, pLimit);
-            for( JsonObject jsonObject : tResults ) {
-                System.out.println( jsonObject.toString());
-            }
+            JsonArray jResults = this.find(pApplication, pTag, pBefore, pAfter, pLimit);
+            jResults.forEach(jrow -> {System.out.println( jrow.getAsJsonObject().toString() );});
         } catch (DBException e) {
             e.printStackTrace();
         }

@@ -24,6 +24,10 @@ public class Authorize {
         }
     }
 
+    public int size() {
+        return mApiKeys.size();
+    }
+
     public boolean isFindRestricted() {
         return mFindRestricted;
     }

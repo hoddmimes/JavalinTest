@@ -4,13 +4,13 @@ import com.google.gson.*;
 import io.javalin.Javalin;
 import io.javalin.community.ssl.SslPlugin;
 import io.javalin.http.Context;
-import org.eclipse.jetty.util.thread.TryExecutor;
+import io.javalin.json.JavalinJackson;
+
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 
@@ -18,24 +18,20 @@ public class Zink
 {
     DBBase db;
     Javalin mApp;
-    JsonArray jApiKeys;
     JsonObject jConfig;
     Logger mLogger;
     Authorize mAuthorize;
     static Zink sZinkServer;
+    boolean mVerbose = false;
 
     private void loadConfig(String[] pArgs) {
         int i = 0;
-        boolean tLogToTTY = false;
 
         String tConfigFilename = "./zink-server-sqlite3.json";
 
         while (i < pArgs.length) {
             if (pArgs[i].contentEquals("-config")) {
-                tConfigFilename = pArgs[i++];
-            }
-            if (pArgs[i].contentEquals("-verbose")) {
-                tLogToTTY = Boolean.parseBoolean(pArgs[i++]);
+                tConfigFilename = pArgs[++i];
             }
             i++;
         }
@@ -51,8 +47,14 @@ public class Zink
                 if (!j.isJsonNull()) {
                     tLogFilename = j.getAsString();
                 }
+
             }
-            mLogger = new Logger(tLogFilename, tLogToTTY);
+            if (jConfig.has("verbose")) {
+                mVerbose  = Boolean.parseBoolean(jConfig.get("verbose").getAsString());
+            }
+
+
+            mLogger = new Logger(tLogFilename, mVerbose);
             mLogger.log("loaded configuration (" + tConfigFilename + ")");
 
 
@@ -65,7 +67,7 @@ public class Zink
                 if (tApiKeyFile.exists() && tApiKeyFile.canRead()) {
                     JsonObject jAuthApiKeys = JsonParser.parseReader(new FileReader(tApiKeysFilename)).getAsJsonObject();
                     mAuthorize = new Authorize(jAuthApiKeys.get("api-keys").getAsJsonArray(), jAuthConfig.get("save_restricted").getAsBoolean(), jAuthConfig.get("find_restricted").getAsBoolean());
-                    mLogger.log("loaded API keys (" + jApiKeys.size() + ") from file: " + tApiKeysFilename );
+                    mLogger.log("loaded API keys (" + mAuthorize.size() + ") from file: " + tApiKeysFilename );
                 } else {
                     mLogger.log("Warning: API key file not found or could not be read, file : " + tApiKeysFilename );
                 }
@@ -103,6 +105,7 @@ public class Zink
         mApp = Javalin.create( config -> {
                     config.showJavalinBanner = false;
                     config.registerPlugin(sslPlugin);
+                    config.jsonMapper(new JavalinJackson());
                 });
 
     }
@@ -110,6 +113,52 @@ public class Zink
 
     public static void getHelloS(Context ctx) {
         ctx.result("Hello world");
+    }
+    public static void postFindS( Context ctx ) {
+        sZinkServer.postFind(ctx);
+    }
+
+    public void postFind( Context ctx ) {
+        mLogger.log("[REQUEST [" + ctx.method() + "] rmthst: " + ctx.req().getRemoteHost() + " url: " + ctx.req().getRequestURL().toString());
+
+        String contentType = ctx.contentType();
+        if (!"application/json".equalsIgnoreCase(contentType)) {
+            ctx.status(400).result("Invalid json request \n" + ctx.body());
+        }
+
+        Map<String, String> tParams = paramsToMap(ctx);
+
+        String tApiKey = getApiKey(ctx);
+        if ((mAuthorize != null) && mAuthorize.isFindRestricted()) {
+            if (!mAuthorize.validate(tApiKey, Authorize.Action.FIND)) {
+                ctx.status(401).result("unauthorized apikey");
+            }
+        }
+
+        if (tParams.size() == 0) {
+            ctx.status(400).result("No query parameters present in request");
+            return;
+        }
+
+        if (!tParams.containsKey("application")) {
+            ctx.status(400).result("invalid query parameter \"application\" is missing");
+            return;
+        }
+
+        // Get data from the DB
+
+        try {
+            JsonArray jResult = db.find(tParams.get("application"),
+                                        tParams.get("tag"),
+                                        tParams.get("before"),
+                                        tParams.get("after"),
+                                        Integer.parseInt(tParams.get("limit")));
+
+            ctx.result(jResult.toString());
+
+        } catch (Exception e) {
+            ctx.status(500).result(e.getMessage());
+        }
     }
 
     public static void getFindS( Context ctx ) {
@@ -142,16 +191,69 @@ public class Zink
         // Get data from the DB
 
         try {
-            List<JsonObject> tResult = db.find(tParams.get(tParams.get("application")),
+            JsonArray jResult = db.find(tParams.get(tParams.get("application")),
                     tParams.get("tag"),
                     tParams.get("before"),
                     tParams.get("after"),
                     Integer.parseInt(tParams.get("limit")));
 
-            ctx.result( HtmlBuilder.buildTable(getQryHdr( tParams ), tResult));
+            ctx.result( HtmlBuilder.buildTable(getQryHdr( tParams ), jResult));
 
         } catch (Exception e) {
             ctx.status(500).result(e.getMessage());
+        }
+    }
+
+    public static void postSaveS( Context ctx ) {
+        sZinkServer.postSave(ctx);
+    }
+
+    public void postSave( Context ctx ) {
+        mLogger.log("[REQUEST [" + ctx.method() + "] rmthst: " + ctx.req().getRemoteHost() + " url: " + ctx.req().getRequestURL().toString());
+
+        String contentType = ctx.contentType();
+        if (!"application/json".equalsIgnoreCase(contentType)) {
+            ctx.status(400).result("Invalid json request \n" + ctx.body());
+        }
+
+        Map<String, String> tParams = paramsToMap(ctx);
+
+        String tApiKey = getApiKey(ctx);
+        if ((mAuthorize != null) && mAuthorize.isSaveRestricted()) {
+            if (!mAuthorize.validate(tApiKey, Authorize.Action.SAVE)) {
+                ctx.status(401).result("unauthorized apikey");
+            }
+        }
+
+        if (!tParams.containsKey("application")) {
+            ctx.status(400).result("invalid query parameter \"application\" is missing");
+            return;
+        }
+        if (!tParams.containsKey("data")) {
+            ctx.status(400).result("invalid query parameter \"data\" is missing");
+            return;
+        }
+
+        if ((mAuthorize != null) && (mAuthorize.isSaveRestricted()) && (!mAuthorize.validate( tApiKey, Authorize.Action.SAVE))) {
+            ctx.status(400).result("unauthorized apikey");
+        }
+
+        try {
+            db.save(tParams.get("application"), tParams.get("tag"), tParams.get("data"));
+        }
+        catch( Exception e) {
+            mLogger.error("failed to save", e);
+        }
+        mLogger.log("[RESPONSE] status: 200");
+        ctx.status(200);
+    }
+
+    private String getApiKey( Context ctx ) {
+        String authHeader = ctx.header("Authorization");
+        if (authHeader != null && authHeader.startsWith("apikey ")) {
+            return authHeader.substring(7);
+        } else {
+            return null;
         }
     }
 
@@ -174,6 +276,8 @@ public class Zink
     private void declare() {
         mApp.get("/hello", Zink::getHelloS);
         mApp.get("/find", Zink::getFindS);
+        mApp.post("/find", Zink::postFindS);
+        mApp.post("/save", Zink::postSaveS);
     }
     private void run() {
       mApp.start();
@@ -193,9 +297,10 @@ public class Zink
     }
     static private HashMap<String,String> paramsToMap( Context ctx ) {
         HashMap<String,String> tMap = new HashMap<>();
-        if (ctx.method().equals("GET")) {
+
+        if (ctx.method().toString().equals("GET")) {
             ctx.pathParamMap();
-        } else  if (ctx.method().equals("POST")) {
+        } else  if (ctx.method().toString().equals("POST")) {
             String jString = ctx.body();
             JsonObject jParams = JsonParser.parseString( jString ).getAsJsonObject();
             for (Map.Entry<String, JsonElement> entry : jParams.entrySet()) {

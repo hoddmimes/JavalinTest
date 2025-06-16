@@ -1,6 +1,6 @@
 {
     "verbose" : true,
-    "logfile" : null,
+    "logfile" : "./zink-server.log",
     "authorization" : {
         "file": "./zink-api-keys.json",
         "save_restricted": true,

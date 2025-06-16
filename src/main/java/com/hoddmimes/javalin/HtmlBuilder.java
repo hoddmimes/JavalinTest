@@ -1,8 +1,10 @@
 package com.hoddmimes.javalin;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import j2html.tags.ContainerTag;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static j2html.TagCreator.*;
@@ -10,8 +12,10 @@ import static j2html.TagCreator.*;
 
 public class HtmlBuilder {
 
-    public static String buildTable(String pHeader, List<JsonObject> pRows) {
+    public static String buildTable(String pHeader, JsonArray jRows) {
 
+        List<JsonObject> tRows = new ArrayList<>(jRows.size());
+        jRows.forEach( jRow -> { tRows.add(jRow.getAsJsonObject()); });
 
         ContainerTag tHtml = html(
                 head(
@@ -25,7 +29,7 @@ public class HtmlBuilder {
                                                 th("name").withStyle("text-align: center;border-collapse: collapse;border: 1px solid darkgray"),
                                                 th("value").withStyle("text-align: center;border-collapse: collapse;border: 1px solid darkgray")
                                         ),
-                                        (each(pRows, r -> tr(
+                                        (each(tRows, r -> tr(
                                                 td(getAttribute("time", r)).withStyle("text-align: center;border-collapse: collapse;border: 1px solid darkgray"),
                                                 td(getAttribute("application", r)).withStyle("text-align: center;border-collapse: collapse;border: 1px solid darkgray"),
                                                 td(getAttribute("tag", r)).withStyle("text-align: center;border-collapse: collapse;border: 1px solid darkgray"),
